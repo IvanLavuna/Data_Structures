@@ -25,8 +25,7 @@ namespace LISTspace
             T data;
             Node*next;
             Node*prev;
-
-            Node(T data)
+            explicit Node(T data)
             {
                 this->data = data;
                 this->next = NULL;
@@ -34,19 +33,23 @@ namespace LISTspace
             }
         };
 
-        int m_size;
+        int m_size{};
         Iterator iterator; //forgot to add m_ ((
         Node *m_begin;
         Node *m_end;
-
-        void swap(Iterator it1,Iterator it2);
     public:
+        void swap(Iterator it1,Iterator it2);
+
         class Iterator
         {
             friend class List;
         private:
             Node* cur_node;
         public:
+            bool is_ptr(){return cur_node == nullptr;}
+
+            Node* get_node(){return cur_node;};
+
             Iterator& operator++()
             {
                 cur_node = cur_node->next;
@@ -84,6 +87,78 @@ namespace LISTspace
             {
                 return iter1.cur_node != iter2.cur_node;
             }
+            Iterator operator+(int b)
+            {
+                assert(cur_node != nullptr);
+
+                Iterator temp;
+                temp.cur_node = cur_node;
+                int i = 0;
+
+                while(i != b)
+                {
+                    temp++;
+                    i++;
+                    if(temp.cur_node == nullptr)
+                    {
+                        break;
+                    }
+                }
+                return temp;
+            }
+
+            Iterator operator-(int b)
+            {
+                assert(cur_node != nullptr);
+
+                Iterator temp;
+                temp.cur_node = cur_node;
+                int i = 0;
+
+                while(i != b)
+                {
+                    temp--;
+                    i++;
+                    if(temp.cur_node == nullptr)
+                    {
+                        break;
+                    }
+                }
+                return temp;
+            }
+
+            Iterator& operator+=(int b)
+            {
+                int i = 0;
+                while(i != b)
+                {
+                    if(cur_node == nullptr)
+                    {
+                        break;
+                    }
+                    cur_node = cur_node->next;
+                    i++;
+                }
+
+                return *this;
+            }
+
+            Iterator& operator-=(int b)
+            {
+                int i = 0;
+                while(i != b)
+                {
+                    if(cur_node == nullptr)
+                    {
+                        break;
+                    }
+                    cur_node = cur_node->prev;
+                    i++;
+                }
+
+                return *this;
+            }
+
         };
 
         List(){m_size = 0;m_end = m_begin = NULL;}
@@ -96,15 +171,21 @@ namespace LISTspace
 
         Iterator begin() {iterator.cur_node = m_begin; return iterator;}
 
-        Iterator end() {iterator.cur_node = m_end; return iterator; }
+        Iterator end() {iterator.cur_node = NULL; return iterator; }
+
+        Iterator mend(){iterator.cur_node = NULL;return iterator;}
+
+        Iterator mbegin(){iterator.cur_node = m_end;return iterator;}
 
         List& push_back(T data);
 
-        List&  push_front(T data);
+        List& push_front(T data);
 
         List& insert_after(int position,T data);
 
         List& insert_after(T after, T data,bool not_integer);
+
+        List& insert_after(Iterator& node, Iterator& new_node);
 
         //removes last element
         List& remove_last();
@@ -114,6 +195,8 @@ namespace LISTspace
 
         //remove data with a given position;
         List& remove(int position);
+
+        List& remove(Iterator& node);
 
         //remove given data
         List& remove(T data,bool not_integer);
@@ -144,4 +227,372 @@ namespace LISTspace
 
 }
 
+using namespace LISTspace;
+
+template<class T>
+List<T>::List(std::initializer_list<T> list) : List<T>::List()
+{
+    for (auto i = list.begin(); i != list.end(); i++)
+    {
+        push_back(*i);
+    }
+}
+
+template<class T>
+void List<T>::swap(Iterator it1,Iterator it2)
+{
+    T temp = it1.cur_node->data;
+    it1.cur_node->data = it2.cur_node->data;
+    it2.cur_node->data = temp;
+}
+
+template <class T>
+List<T>::~List()
+{
+    while(m_size!=0)
+    {
+        remove_first();
+    }
+}
+
+template<class T>
+List<T>& List<T>::push_back(T data)
+{
+    Node* new_node = new Node(data);
+
+    if(m_size == 0)
+    {
+        m_end = m_begin = new_node;
+    }
+    else
+    {
+        m_end->next = new_node;
+        new_node->prev = m_end;
+        m_end = new_node;
+    }
+    m_size++;
+    return *this;
+}
+
+template <class T>
+List<T>& List<T>::push_front(T data)
+{
+    Node* new_node = new Node(data);
+
+    if(m_size == 0)
+    {
+        m_begin = m_end = new_node;
+    }
+    else{
+        new_node->next = m_begin;
+        m_begin->prev = new_node;
+        m_begin = new_node;
+    }
+    m_size++;
+    return *this;
+
+}
+
+template <class T>
+List<T>& List<T>::insert_after(int position, T data)
+{
+    assert(position >= 0 && position < m_size);
+
+    Node* new_node = new Node(data);
+
+    if(m_size == 0)
+    {
+        push_back(data);
+        return *this;
+    }
+
+    auto iterator1 = begin();
+    int i = 0;
+    while(i!=position)
+    {
+        iterator1++;
+        i++;
+    }
+    if(iterator1.cur_node == m_end)
+    {
+        push_back(data);
+        return *this;
+    }
+
+    iterator1.cur_node->next->prev = new_node;
+    new_node->prev = iterator1.cur_node;
+    new_node->next = iterator1.cur_node->next;
+    iterator1.cur_node->next = new_node;
+    m_size++;
+    return *this;
+
+
+}
+
+template<class T>
+List<T>& List<T>::insert_after(T after, T data, bool not_integer)
+{
+    Node* new_node = new Node(data);
+
+    if(m_size == 0)
+    {
+        push_back(data);
+        return *this;
+    }
+
+    auto iterator1 = begin();
+
+    while(*iterator1 != after){iterator1++;}
+
+    if(iterator1.cur_node == m_end)
+    {
+        push_back(data);
+        return *this;
+    }
+
+    iterator1.cur_node->next->prev = new_node;
+    new_node->prev = iterator1.cur_node;
+    new_node->next = iterator1.cur_node->next;
+    iterator1.cur_node->next = new_node;
+
+    m_size++;
+
+    return *this;
+
+}
+
+template <class T>
+List<T>& List<T>::remove_first()
+{
+    assert(m_size >0);
+
+    if(m_size == 1)
+    {
+        delete m_begin;
+        m_begin = m_end = NULL;
+    }
+    else
+    {
+        m_begin = m_begin->next;
+        m_begin->prev = NULL;
+        delete m_begin->prev;
+    }
+
+    m_size--;
+
+    return *this;
+}
+
+template <class T>
+List<T>& List<T>::remove_last()
+{
+    assert(m_size >0);
+
+    if(m_size == 1)
+    {
+        delete m_end;
+        m_end = m_begin = NULL;
+    }
+    else
+    {
+        m_end = m_end->prev;
+        delete m_end->next;
+        m_end->next = NULL;
+
+    }
+
+    m_size--;
+
+    return *this;
+}
+
+template <class T>
+List<T>& List<T>::remove(int position)
+{
+    assert(position >=0 && position < m_size);
+
+    auto iter = begin();
+
+    int i =0;
+
+    while(i!=position)
+    {
+        iter++;
+        i++;
+    }
+
+    if(iter.cur_node == m_begin)
+    {
+        remove_first();
+        return *this;
+    }
+    else if (iter.cur_node == m_end)
+    {
+        remove_last();
+        return *this;
+    }
+
+    iter.cur_node->next->prev = iter.cur_node->prev;
+
+    iter.cur_node->prev->next = iter.cur_node->next;
+
+    delete iter.cur_node;
+
+    m_size--;
+
+    return *this;
+}
+
+template <class T>
+List<T>& List<T>::remove(T data,bool not_integer)
+{
+    assert(m_size > 0);
+
+    auto iter = begin();
+
+    while(*iter != data ){ iter++; }
+
+    if(iter.cur_node == m_begin)
+    {
+        remove_first();
+        return *this;
+    }
+    else if (iter.cur_node == m_end)
+    {
+        remove_last();
+        return *this;
+    }
+
+    iter.cur_node->next->prev = iter.cur_node->prev;
+
+    iter.cur_node->prev->next = iter.cur_node->next;
+
+    delete iter.cur_node;
+
+    m_size--;
+
+    return *this;
+
+}
+
+template<class T>
+List<T>& List<T>::remove(LISTspace::List<T>::Iterator &node)
+{
+    if (node.cur_node == NULL)
+    {
+        return *this;
+    }
+    if(node.cur_node->prev == NULL)
+    {
+        remove_first();
+    }
+    else if(node.cur_node->next == NULL)
+    {
+        remove_last();
+    }
+    else
+    {
+        node.cur_node->next->prev = node.cur_node->prev;
+
+        node.cur_node->prev->next = node.cur_node->next;
+
+        delete node.cur_node;
+
+        m_size--;
+    }
+
+    return *this;
+}
+
+
+
+template<class T>
+List<T>& List<T>::sort()
+{
+    bool ok = true;
+
+    while(ok)
+    {
+        ok = false;
+
+        auto i = begin();
+        auto i_fr = ++begin();
+
+        while (i.cur_node != m_end)
+        {
+            if (*i > *i_fr)
+            {
+                swap(i, i_fr);
+                ok = true;
+            }
+            i++;
+            i_fr++;
+        }
+    }
+    return *this;
+}
+
+template<class T>
+List<T>& List<T>::reverse()
+{
+    auto it_begin = begin();
+    auto it_end = end();
+
+    for(int i =0;i<m_size/2;i++)
+    {
+        swap(it_begin,it_end);
+        it_begin++;
+        it_end--;
+    }
+    return *this;
+}
+
+template <class T>
+List<T>& List<T>::erase()
+{
+    while(m_size!=0)
+    {
+        remove_first();
+    }
+}
+
+template <class T>
+T& List<T>::operator[](int index)
+{
+    assert(index >= 0 && index < m_size);
+
+    int i =0;
+    auto iter = begin();
+    while(i!=index){i++;iter++;}
+
+    return iter.cur_node->data;
+}
+
+template<class T>
+List<T> &List<T>::insert_after(LISTspace::List<T>::Iterator &node, LISTspace::List<T>::Iterator &new_node)
+{
+    if(node.is_ptr())
+    {
+        push_front(*new_node);
+    }
+    else if((node+1).is_ptr())
+    {
+        push_back(*new_node);
+    } else
+    {
+        Node* new_Node = new Node(new_node.cur_node->data);
+
+        node.cur_node->next->prev = new_Node;
+        new_Node->next = node.cur_node->next;
+        new_Node->prev = node.cur_node;
+        node.cur_node->next = new_Node;
+
+        m_size++;
+    }
+    return *this;
+}
+
+
 #endif //DATA_STRUCTURES_LIST_H
+
+

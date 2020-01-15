@@ -10,9 +10,8 @@
 #include <cassert>
 #include <initializer_list>
 #include "List.h"
-#include "List.cpp"
 
-#define MAX_SIZE 20000
+#define MAX_Q_SIZE 20000
 
 namespace QUEUEspace
 {
@@ -44,6 +43,60 @@ namespace QUEUEspace
         Queue& erase();
 
     };
+}
+
+
+using namespace QUEUEspace;
+
+template<class T>
+Queue<T>::Queue(std::initializer_list<T> list) : Queue<T>::Queue()
+{
+    for(auto i = list.begin();i<list.end();i++)
+    {
+        push(*i);
+    }
+}
+
+template<class T>
+Queue<T>::~Queue()
+{
+    while(m_size!=0)
+    {
+        pop();
+    }
+}
+
+template <class T>
+Queue<T>& Queue<T>::push(T data)
+{
+    assert(m_size < MAX_Q_SIZE && "QUEUE IS OVERLOADED");
+    m_queue.push_back(data);
+    m_size++;
+}
+
+template <class T>
+Queue<T>& Queue<T>::pop()
+{
+    assert(m_size > 0);
+    m_queue.remove_first();
+    m_size--;
+}
+
+template <class T>
+T Queue<T>::front()
+{
+    assert(m_size > 0);
+
+    return *(m_queue.begin());
+}
+
+template<class T>
+Queue<T>& Queue<T>::erase()
+{
+    while(m_size!=0)
+    {
+        pop();
+    }
 }
 
 #endif //DATA_STRUCTURES_QUEUE_H
